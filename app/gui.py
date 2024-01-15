@@ -9,7 +9,7 @@ from pathlib import Path
 from tkinter import Tk, Canvas, Entry, Text, Button, PhotoImage, END, Label, Listbox, \
     ALL
 
-from app.db import Person
+from app.db import get_all_records, delete_record, create_new_record
 
 OUTPUT_PATH = Path(__file__).parent
 ASSETS_PATH = OUTPUT_PATH / Path(r"D:\dev\phone_book\app\assets\frames")
@@ -183,8 +183,7 @@ def delete_selected_rows():
         values_list = row.split(':')
         name = values_list[0]
         phone = values_list[1].split('\n')[0].split(' ')[1]
-        row = Person.get(Person.name == name, Person.phone == phone)
-        row.delete_instance()
+        delete_record(name, phone)
     fetch_data_to_list_box()
 
 
@@ -198,23 +197,24 @@ def save_row_to_db():
     else:
         entry_1.delete(0, END)
         entry_3.delete(0, END)
-        new_row = Person.create(name=name, phone=phone)
-        new_row.save()
+        create_new_record(name, phone)
 
     fetch_data_to_list_box()
 
 
 def fetch_data_to_list_box(all=True):
-    contacts = Person.select()
+    contacts = get_all_records()
     filter_value = entry_4.get()
     if not all and filter_value:
-        print(f'sdsd{filer_value=}')
-        contacts = Person.select().where(
-            (Person.name.contains(filter_value)) | Person.phone.contains(filter_value)
-        )
+        filtered_contacts = [contact for contact in contacts if
+                             filter_value.lower() in contact[1].lower() or
+                             filter_value in contact[2]]
+    else:
+        filtered_contacts = contacts
+
     list_box.delete(0, END)
-    for i, contact in enumerate(contacts):
-        list_box.insert(i, f"{contact.name}: {contact.phone}\n")
+    for i, contact in enumerate(filtered_contacts):
+        list_box.insert(i, f"{contact[1]}: {contact[2]}\n")
 
 
 def sort_listbox():
@@ -226,9 +226,9 @@ def sort_listbox():
     elif sort_order == 1:
         items.sort(reverse=True)
     elif sort_order == 2:
-        items.sort(key=lambda item: int(item.split(":")[1]))
+        items.sort(key=lambda row: int(row.split(":")[1]))
     elif sort_order == 3:
-        items.sort(key=lambda item: int(item.split(":")[1]), reverse=True)
+        items.sort(key=lambda row: int(row.split(":")[1]), reverse=True)
 
     list_box.delete(0, END)
     for item in items:
@@ -236,8 +236,6 @@ def sort_listbox():
 
     sort_order = (sort_order + 1) % 4
 
-
-fetch_data_to_list_box()
 
 
 button_image_1 = PhotoImage(
